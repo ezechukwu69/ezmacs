@@ -5,16 +5,21 @@
 ;; rearranging your windows.  Popups are grouped per workspace: each tabspaces
 ;; workspace only cycles through / toggles its own popups.
 ;;
-;;   SPC '    show/hide the latest popup      SPC "    cycle through popups
+;;   SPC ' or C-'   hide all popups / bring them back    SPC "   cycle through popups
 ;;   SPC b P  turn a popup into a normal buffer (and back)
 
 (declare-function my/leader "my-keys-leader")
-(declare-function tabspaces--current-tab-name "tabspaces")
 
 (defun my/popper-group ()
-  "Group popups by tabspaces workspace, falling back to the project."
-  (or (and (fboundp 'tabspaces--current-tab-name) (tabspaces--current-tab-name))
-      (and (fboundp 'popper-group-by-project) (popper-group-by-project))))
+  "Return a stable identifier for the current workspace (tab).
+A tab's *name* cannot be used for that unless it was set explicitly: unnamed
+tabs are renamed after the buffer they display (\"*scratch*\", \"*Messages*\"),
+so every popup would end up in a group of its own.  Tabspaces names project
+tabs explicitly; other tabs are identified by their position."
+  (let ((tab (tab-bar--current-tab)))
+    (if (alist-get 'explicit-name tab)
+        (alist-get 'name tab)
+      (format "tab-%d" (tab-bar--current-tab-index)))))
 
 (use-package popper
   :demand t
@@ -38,8 +43,45 @@
   (popper-mode 1)
   (popper-echo-mode 1))                  ; popup names in the echo area while cycling
 
+;; `popper-toggle' only closes the *latest* popup and decides between "hide" and
+;; "show" from a bookkeeping list that can go stale (a popup closed with `q' or
+;; replaced by another buffer), so it sometimes did nothing.  This version looks
+;; at the windows actually on screen: if any popup is visible, hide all of them;
+;; otherwise bring back the ones just hidden (or the latest buried popup).
+(defvar my/popper--hidden nil
+  "Popup buffers hidden by the last `my/popper-toggle'.")
+
+(defun my/popper-toggle ()
+  "Hide every visible popup, or restore the popups hidden last time."
+  (interactive)
+  (popper--update-popups)
+  (let ((visible (popper--find-popups
+                  (mapcar #'window-buffer (window-list nil 'no-mini)))))
+    (if visible
+        (progn
+          (setq my/popper--hidden (mapcar #'cdr visible))
+          (popper--bury-all)
+          ;; Anything popper's bookkeeping missed: close the window directly.
+          (dolist (win (window-list nil 'no-mini))
+            (when (and (window-live-p win)
+                       (not (one-window-p t))
+                       (memq (window-buffer win) my/popper--hidden))
+              (delete-window win))))
+      (let ((bufs (seq-filter #'buffer-live-p (reverse my/popper--hidden))))
+        (if bufs
+            (dolist (buf bufs) (display-buffer buf))
+          (popper-open-latest (funcall popper-group-function)))))))
+
+;; Terminals forward most keys to the shell: let the popup toggle and the
+;; M-SPC leader reach Emacs from a Ghostel popup too.
+(with-eval-after-load 'ghostel
+  (setopt ghostel-keymap-exceptions
+          (seq-union ghostel-keymap-exceptions '("C-'" "M-SPC"))))
+
+(global-set-key (kbd "C-'") #'my/popper-toggle)   ; works in any state, terminals included
+
 (my/leader
-  "'" '(popper-toggle :wk "popup: toggle")
+  "'" '(my/popper-toggle :wk "popup: toggle (C-')")
   "\"" '(popper-cycle :wk "popup: cycle")
   "bP" '(popper-toggle-type :wk "popup <-> normal"))
 

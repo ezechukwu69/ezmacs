@@ -5,6 +5,7 @@
         my-lang-flymake
         my-lang-diagnostics
         my-lang-format
+        my-lang-vite-plus
         my-lang-dape
         my-lang-envrc
         my-lang-modes

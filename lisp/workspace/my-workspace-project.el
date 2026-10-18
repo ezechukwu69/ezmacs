@@ -24,6 +24,12 @@
       (when (file-directory-p (expand-file-name root))
         (project-remember-projects-under (expand-file-name root) t)))))
 
+;; `project--list' starts out as the symbol `unset' until the list file is read;
+;; tabspaces touches it directly, so make sure it has been loaded.
+(with-eval-after-load 'tabspaces
+  (advice-add 'tabspaces-open-or-create-project-and-workspace :before
+              (lambda (&rest _) (project--ensure-read-project-list))))
+
 (defun my/project-forget-all ()
   "Forget every known project and the saved workspace session, then start afresh.
 Open buffers and tabs are left alone; the project list is rebuilt as you visit
