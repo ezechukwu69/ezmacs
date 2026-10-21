@@ -3,6 +3,7 @@
 (mapc #'require
       '(my-workspace-project
         my-workspace-tabspaces
+        my-workspace-start
         my-workspace-consult
         my-workspace-ibuffer
         my-workspace-popups))

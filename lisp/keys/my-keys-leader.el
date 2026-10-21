@@ -104,7 +104,8 @@
  ;; toggles
  "tl" '(display-line-numbers-mode :wk "line numbers")
  "tw" '(visual-line-mode :wk "wrap")
- "tt" '(consult-theme :wk "theme")
+ "tt" '(my/select-theme :wk "theme (saved)")
+ "tF" '(my/select-font :wk "font (saved; C-u for size)")
  "te" '(my/evil-toggle :wk "evil")
  "tf" '(toggle-frame-fullscreen :wk "fullscreen")
 

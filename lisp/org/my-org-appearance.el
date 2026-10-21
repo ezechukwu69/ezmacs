@@ -23,4 +23,11 @@
       org-special-ctrl-a/e t
       org-insert-heading-respect-content t)
 
+;; A heading tagged :TOC: gets its table of contents written/refreshed on save.
+;; :TOC_2: limits the depth; :noexport: keeps it out of exports.
+(use-package toc-org
+  :hook (org-mode . toc-org-mode)
+  :custom
+  (toc-org-hrefify-default "gh"))
+
 (provide 'my-org-appearance)
