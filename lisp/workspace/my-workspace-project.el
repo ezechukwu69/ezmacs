@@ -11,6 +11,7 @@
                              (consult-ripgrep "Ripgrep" ?g)
                              (project-dired "Dired" ?d)
                              (magit-project-status "Magit" ?m)
+                             (ez-review-list "Review PRs/MRs" ?r)
                              (project-eshell "Eshell" ?e)))
   :config
   ;; Directories where you keep repos; M-x project-remember-projects-under

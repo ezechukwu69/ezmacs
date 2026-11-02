@@ -30,7 +30,7 @@
   "Make a font or theme change show everywhere now, without restarting."
   (clear-face-cache)
   (when (fboundp 'ez-agents-dashboard--render) (ignore-errors (ez-agents-dashboard--render)))
-  (when (fboundp 'doom-modeline-refresh-font-width-cache) (ignore-errors (doom-modeline-refresh-font-width-cache)))
+  (when (fboundp 'ez-modeline-refresh) (ignore-errors (ez-modeline-refresh)))
   (force-mode-line-update t)
   (redraw-display))
 

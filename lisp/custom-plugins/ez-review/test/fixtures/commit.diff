@@ -1,0 +1,9 @@
+diff --git a/src/a.el b/src/a.el
+index 111..222 100644
+--- a/src/a.el
++++ b/src/a.el
+@@ -2,3 +2,4 @@
+   2)
++(defun b () 3)
+ (provide 'a)
+ 

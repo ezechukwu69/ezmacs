@@ -19,7 +19,7 @@
     (let ((inhibit-message (not (called-interactively-p 'any))))
       (prepare-user-lisp nil nil force))))
 
-(add-hook 'emacs-startup-hook
-          (lambda () (run-with-idle-timer 3 nil #'my/prepare-lisp)))
+;; Last in the idle queue (see `my/after-startup-idle'): nothing waits on it.
+(my/after-startup-idle #'my/prepare-lisp)
 
 (provide 'my-core-userlisp)

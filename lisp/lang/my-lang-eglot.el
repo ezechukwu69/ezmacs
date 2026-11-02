@@ -1,5 +1,6 @@
 ;;; my-lang-eglot.el --- LSP via Eglot  -*- lexical-binding: t; byte-compile-warnings: (not free-vars unresolved); -*-
 
+
 (declare-function my/leader "my-keys-leader")
 (declare-function general-define-key "general")
 
@@ -53,6 +54,40 @@ scroll it with the usual keys and close it with `q'."
         (add-hook 'eldoc-display-functions #'show 90 t)
         (eldoc-print-current-symbol-info t)))))
 
+;;; Symbols ------------------------------------------------------------------
+
+(declare-function consult-imenu "consult-imenu")
+(declare-function consult-imenu-multi "consult-imenu")
+(declare-function consult-eglot-symbols "consult-eglot")
+(declare-function eglot-current-server "eglot")
+(declare-function eglot-server-capable "eglot")
+(defvar imenu-auto-rescan)
+(defvar imenu-auto-rescan-maxout)
+(defvar imenu--index-alist)
+
+(defun my/symbols-buffer ()
+  "Browse the symbols of this buffer with Consult, with live preview.
+Under Eglot these are the language server's document symbols, otherwise the
+mode's imenu.  The index is rebuilt first: imenu stops rescanning buffers
+bigger than `imenu-auto-rescan-maxout' (60KB), which made symbols go missing."
+  (interactive)
+  (require 'imenu)
+  (let ((imenu-auto-rescan t)
+        (imenu-auto-rescan-maxout (max imenu-auto-rescan-maxout (* 2 (buffer-size)))))
+    (setq imenu--index-alist nil)
+    (consult-imenu)))
+
+(defun my/symbols-workspace ()
+  "Browse the symbols of the whole workspace with Consult.
+With an Eglot server that supports it this searches every file of the project
+as you type; otherwise it lists the imenu of every open buffer of the project."
+  (interactive)
+  (if (and (bound-and-true-p eglot--managed-mode)
+           (eglot-current-server)
+           (eglot-server-capable :workspaceSymbolProvider))
+      (consult-eglot-symbols)
+    (consult-imenu-multi)))
+
 (my/leader
   "ca" '(eglot-code-actions :wk "code action")
   "cr" '(eglot-rename :wk "rename")
@@ -61,25 +96,15 @@ scroll it with the usual keys and close it with `q'."
   "cD" '(xref-find-references :wk "references")
   "ci" '(eglot-find-implementation :wk "implementation")
   "ct" '(eglot-find-typeDefinition :wk "type definition")
-  "cs" '(consult-eglot-symbols :wk "workspace symbols")
+  "cs" '(my/symbols-workspace :wk "workspace symbols")
+  "cS" '(my/symbols-buffer :wk "buffer symbols")
   "cR" '(eglot-reconnect :wk "reconnect")
   "cx" '(eglot-shutdown :wk "shutdown server")
   "ch" '(eldoc :wk "doc (echo area)")
   "ck" '(my/eldoc-show :wk "doc window"))
 
-(general-define-key :states 'normal
-                    "K" 'my/eldoc-show              ; signature/docs + line diagnostics
-                    "gd" 'xref-find-definitions
-                    "gD" 'eglot-find-declaration)
-
-;; Neovim-style LSP actions (nvim 0.11 defaults): gr prefix
-(general-define-key :states '(normal visual)
-                    "gra" 'eglot-code-actions
-                    "grn" 'eglot-rename
-                    "grr" 'xref-find-references
-                    "gri" 'eglot-find-implementation
-                    "grt" 'eglot-find-typeDefinition
-                    "gO"  'consult-imenu)
+;; Evil key and Emacs-mode twin in one place (`:g' = Evil g.., Emacs C-c g ..).
+;; gd gD gr* g0 gO K and their Emacs-mode keys: lisp/keys/my-keys-table.el
 
 (use-package consult-eglot
   :after (consult eglot))

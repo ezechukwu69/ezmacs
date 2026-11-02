@@ -8,7 +8,7 @@
 (make-directory my/org-roam-dir t)
 
 (use-package org-roam
-  :after org
+  :defer t                              ; loading + the db sync on enable take ~1s: on demand only
   :custom
   (org-roam-directory my/org-roam-dir)
   (org-roam-completion-everywhere t)
@@ -23,6 +23,15 @@
       :target (file+head "%<%Y-%m-%d>.org" "#+title: %<%Y-%m-%d>\n"))))
   :config
   (org-roam-db-autosync-mode 1))
+
+;; Opening a note inside the roam directory loads org-roam (and so its autosync),
+;; so edits there still reach the database; the leader keys below autoload it too.
+(defun my/org-roam-maybe-load ()
+  (when (and buffer-file-name
+             (string-prefix-p (expand-file-name my/org-roam-dir)
+                              (expand-file-name buffer-file-name)))
+    (require 'org-roam)))
+(add-hook 'find-file-hook #'my/org-roam-maybe-load)
 
 (my/leader
   "nf" '(org-roam-node-find :wk "find note")

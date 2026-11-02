@@ -19,6 +19,7 @@
 ;;; Code:
 
 (require 'cl-lib)
+(require 'color)
 (require 'subr-x)
 (require 'magit-section)
 (require 'ez-agents)

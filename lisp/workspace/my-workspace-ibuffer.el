@@ -3,16 +3,18 @@
 (declare-function my/leader "my-keys-leader")
 (declare-function ibuffer-project-generate-filter-groups "ibuffer-project")
 
-(require 'ibuffer)
-(require 'ibuf-ext)
+;; `define-ibuffer-filter' is a macro, so it needs ibuffer at compile time only;
+;; at run time the libraries load when ibuffer is first used.
+(eval-when-compile (require 'ibuffer) (require 'ibuf-ext))
 
 (setq ibuffer-show-empty-filter-groups nil)
 
 ;; Filter: only buffers that belong to the current tabspace.
-(define-ibuffer-filter workspace
-    "Limit to buffers of the current workspace (tabspaces)."
-  (:description "workspace" :reader nil)
-  (tabspaces--local-buffer-p buf))
+(with-eval-after-load 'ibuf-ext
+  (define-ibuffer-filter workspace
+      "Limit to buffers of the current workspace (tabspaces)."
+    (:description "workspace" :reader nil)
+    (tabspaces--local-buffer-p buf)))
 
 (defun my/ibuffer--fresh ()
   "Drop the old *Ibuffer* so filters from the previous view do not linger."
@@ -22,12 +24,14 @@
 (defun my/ibuffer-workspace ()
   "Open ibuffer showing only the current workspace's buffers."
   (interactive)
+  (require 'ibuf-ext)
   (my/ibuffer--fresh)
   (ibuffer nil "*Ibuffer*" '((workspace))))
 
 (defun my/ibuffer-all ()
   "Open ibuffer with every buffer of every workspace, grouped by project."
   (interactive)
+  (require 'ibuf-ext)
   (my/ibuffer--fresh)
   (ibuffer nil "*Ibuffer*"))
 

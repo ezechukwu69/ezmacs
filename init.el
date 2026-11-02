@@ -5,18 +5,17 @@
 ;; Emacs puts lisp/ and every subdirectory on `load-path' by itself, so no
 ;; load-path bookkeeping happens here.
 ;;
-;; The config is split into *categories*, one directory each under lisp/.
-;; Every category has a main file `my-<category>.el' that `require's the
-;; individual feature files in that directory (`my-<category>-<feature>.el').
+;; The config is a set of *modules*, one file each, grouped in *categories*
+;; (a directory each under lisp/): lisp/<category>/my-<category>-<module>.el.
+;; What loads, and in what order, is declared in modules.el, in the style of
+;; Doom's `doom!' block.  Personal overrides go in config.el, which loads last.
 ;;
 ;; To add a plugin:
-;;   1. create lisp/<category>/my-<category>-<feature>.el
-;;      (ending with (provide 'my-<category>-<feature>))
-;;   2. add my-<category>-<feature> to the `mapc #'require' list in lisp/<category>/my-<category>.el
-;;
-;; To add a new category: create lisp/<name>/my-<name>.el and add
-;; my-<name> to the list below.  Order matters: later categories
-;; may rely on earlier ones (e.g. `keys' provides the leader definer).
+;;   1. create lisp/<category>/my-<category>-<module>.el
+;;      (ending with (provide 'my-<category>-<module>))
+;;   2. list <module> under :<category> in modules.el
+;; To disable one: comment it out in modules.el.  `M-x my-modules-report' shows
+;; what loaded.  A new category is a new keyword in modules.el plus a directory.
 ;; Standalone libraries (not part of the load order) go in lisp/custom-plugins/.
 
 ;;; Code:
@@ -34,19 +33,11 @@
 ;; Machine-specific settings live here and stay out of the modules.
 (setq custom-file (expand-file-name "custom.el" my/data-dir))
 
-;; Categories, in load order.
-(mapc #'require
-      '(my-core                         ; packages, sane defaults, file hygiene
-        my-ui                           ; theme, fonts, modeline, icons
-        my-keys                         ; evil + SPC leader
-        my-editing                      ; undo, pairs, navigation, whitespace
-        my-completion                   ; vertico, marginalia, consult, embark, corfu, cape
-        my-workspace                    ; per-project workspaces with isolated buffers
-        my-lang                         ; eglot, tree-sitter, formatting, language modes
-        my-vc                           ; magit, diff-hl
-        my-org                          ; org, agenda, capture, roam
-        my-ai                           ; agent-shell
-        my-tools))                      ; which-key, helpful, terminal, dired, ...
+;; The module system, then the module list (modules.el) and your overrides
+;; (config.el, optional).
+(require 'my-modules)
+(load (expand-file-name "modules.el" my/emacs-dir) nil 'nomessage)
+(load (expand-file-name "config.el" my/emacs-dir) 'noerror 'nomessage)
 
 (when (file-exists-p custom-file)
   (load custom-file 'noerror 'nomessage))

@@ -13,14 +13,42 @@
 ;; byte-compile correctly on their own, e.g. under Flymake.
 (declare-function general-define-key "general")
 
-(defun my/leader (&rest args)
-  "Bind ARGS (key def ...) under the SPC leader (M-SPC everywhere)."
+;; Every `general-define-key' call costs ~12ms (it re-normalises Evil's keymaps
+;; for five states), and startup makes 40 of them.  While Emacs is starting,
+;; `my/leader' only queues its bindings and `my/leader-flush' defines them all
+;; in a single call from `after-init-hook'.  Order is kept, so later bindings
+;; still win.  After startup (or when reloading a file) it binds immediately.
+(defvar my/leader--queueing (not after-init-time)
+  "Non-nil while `my/leader' bindings are queued for `my/leader-flush'.")
+
+(defvar my/leader--queue nil
+  "Queued key/definition arguments, newest call first.")
+
+(defun my/leader--define (args)
+  "SPC in Evil's states.  general's :global-prefix only reaches Evil's emacs and insert states, so with Evil off M-SPC would be bound to nothing: the second call binds M-SPC as a plain, state-less key (works with Evil on and off). passing ARGS."
   (apply #'general-define-key
          :states '(normal visual motion emacs insert)
          :keymaps 'override
          :prefix "SPC"
          :global-prefix "M-SPC"
-         args))
+         args)
+  (apply #'general-define-key :keymaps 'override :prefix "M-SPC" args))
+
+(defun my/leader (&rest args)
+  "Bind ARGS (key def ...) under the SPC leader (M-SPC everywhere)."
+  (if my/leader--queueing
+      (push args my/leader--queue)
+    (my/leader--define args)))
+
+(defun my/leader-flush ()
+  "Define the queued leader bindings in one go and stop queueing."
+  (setq my/leader--queueing nil)
+  (when my/leader--queue
+    (let ((all (apply #'append (nreverse my/leader--queue))))
+      (setq my/leader--queue nil)
+      (my/leader--define all))))
+
+(add-hook 'after-init-hook #'my/leader-flush -90)
 
 (defun my/local-leader (&rest args)
   "Bind ARGS under the mode specific SPC m prefix; pass `:keymaps' MAP."
@@ -28,7 +56,9 @@
          :states '(normal visual motion emacs insert)
          :prefix "SPC m"
          :global-prefix "M-SPC m"
-         args))
+         args)
+  ;; M-SPC m with Evil off (see `my/leader--define').
+  (apply #'general-define-key :prefix "M-SPC m" args))
 
 ;; Top-level prefixes (labels for which-key). Feature files fill them in.
 (my/leader
@@ -111,7 +141,8 @@
 
  ;; search
  "ss" '(consult-line :wk "line")
- "si" '(consult-imenu :wk "imenu")
+ "si" '(my/symbols-buffer :wk "symbols (buffer)")
+ "sI" '(my/symbols-workspace :wk "symbols (workspace)")
  "so" '(consult-outline :wk "outline")
  "sr" '(consult-ripgrep :wk "ripgrep")
  "sf" '(consult-fd :wk "fd"))

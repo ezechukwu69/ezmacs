@@ -1,0 +1,47 @@
+#!/bin/sh
+# Fake glab for ez-review tests: logs argv, records stdin, answers with canned JSON.
+echo "GITLAB_HOST=$GITLAB_HOST $*" >> "${EZ_REVIEW_FAKE_LOG:-/dev/null}"
+HERE=$(dirname "$0")
+case "$*" in *"--input -"*) cat >> "${EZ_REVIEW_FAKE_STDIN:-/dev/null}"; echo >> "${EZ_REVIEW_FAKE_STDIN:-/dev/null}" ;; esac
+case "$*" in
+  "api user") echo '{"username":"carol"}' ;;
+  "api --method POST"*"/discussions/d1/notes"*) echo '{"id":99}' ;;
+  "api --method POST"*"/discussions"*) echo '{"id":"new"}' ;;
+  "api --method POST"*"/approve"*) echo '{}' ;;
+  "api --method POST"*"/notes"*) echo '{"id":98}' ;;
+  "api --method POST"*"merge_requests") echo '{"iid":5,"web_url":"https://lab.example.com/g/p/-/merge_requests/5"}' ;;
+  "api --method POST"*"issues") echo '{"iid":6,"web_url":"https://lab.example.com/g/p/-/issues/6"}' ;;
+  "api --method PUT"*) echo '{}' ;;
+  "api --method GET"*"/members/all"*) echo '[{"username":"carol"},{"username":"erin"}]' ;;
+  "api --method GET"*"/merge_requests/3/commits"*)
+    echo '[{"id":"fed9876cba4321","title":"Second","message":"Second","author_name":"Carol","authored_date":"2026-10-02T10:00:00Z"},{"id":"abc1234def5678","title":"First","message":"First","author_name":"Carol","authored_date":"2026-10-01T10:00:00Z"}]'
+    ;;
+  "api --method GET"*"/repository/commits/"*"/diff"*)
+    printf '%s\n' '[{"old_path":"src/a.el","new_path":"src/a.el","new_file":false,"deleted_file":false,"renamed_file":false,"diff":"@@ -2,3 +2,4 @@\n   2)\n+(defun b () 3)\n (provide '"'"'a)\n \n"},{"old_path":"n.txt","new_path":"n.txt","new_file":true,"deleted_file":false,"renamed_file":false,"diff":"@@ -0,0 +1 @@\n+hi\n"}]'
+    ;;
+  "api --method GET"*"/approvals"*) echo '{"approved":true,"approved_by":[{"user":{"username":"bob"}}]}' ;;
+  "api --method GET"*"/merge_requests/3/discussions"*)
+    cat <<'JSON'
+[{"id":"d1","notes":[{"id":11,"author":{"username":"bob"},"body":"Rename this","created_at":"2026-10-02T10:00:00Z","system":false,"position":{"new_path":"src/a.el","old_path":"src/a.el","new_line":2,"old_line":null}},{"id":12,"author":{"username":"carol"},"body":"Done","created_at":"2026-10-02T11:00:00Z","system":false}]},
+ {"id":"d2","notes":[{"id":13,"author":{"username":"bot"},"body":"added 1 commit","created_at":"2026-10-02T12:00:00Z","system":true}]},
+ {"id":"d3","notes":[{"id":14,"author":{"username":"dave"},"body":"Hello","created_at":"2026-10-01T12:00:00Z","system":false}]}]
+JSON
+    ;;
+  "api --method GET"*"/merge_requests/3")
+    echo '{"iid":3,"title":"Add parser","author":{"username":"carol"},"source_branch":"feat/parser","target_branch":"main","draft":false,"state":"opened","web_url":"https://lab.example.com/g/p/-/merge_requests/3","updated_at":"2026-10-03T10:00:00Z","created_at":"2026-10-02T10:00:00Z","description":"Parser.","labels":["backend"],"head_pipeline":{"status":"failed"},"changes_count":"4","detailed_merge_status":"mergeable","reviewers":[{"username":"bob"}],"diff_refs":{"base_sha":"aaa","start_sha":"bbb","head_sha":"ccc"}}'
+    ;;
+  "api --method GET"*"/merge_requests?"*)
+    echo '[{"iid":3,"title":"Add parser","author":{"username":"carol"},"source_branch":"feat/parser","target_branch":"main","draft":true,"state":"opened","web_url":"https://lab.example.com/g/p/-/merge_requests/3","updated_at":"2026-10-03T10:00:00Z","created_at":"2026-10-02T10:00:00Z","description":"Parser.","labels":["backend"]}]'
+    ;;
+  "api --method GET"*"/issues?"*)
+    echo '[{"iid":6,"title":"Slow","author":{"username":"erin"},"state":"closed","web_url":"https://lab.example.com/g/p/-/issues/6","updated_at":"2026-10-03T10:00:00Z","created_at":"2026-10-02T10:00:00Z","description":"It is slow.","labels":[],"assignees":[{"username":"carol"}]}]'
+    ;;
+  "mr diff"*) cat "$HERE/../sample.diff" ;;
+  "mr checkout"*) echo "Switched to branch 'feat/parser'" ;;
+  "auth status"*)
+    case "$*" in
+      *lab.example.com*) echo "Logged in to lab.example.com" ;;
+      *) echo "not logged in" >&2; exit 1 ;;
+    esac ;;
+  *) echo "fake glab: unhandled: $*" >&2; exit 1 ;;
+esac

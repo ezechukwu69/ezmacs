@@ -2,6 +2,8 @@
 
 (use-package envrc
   :if (executable-find "direnv")
-  :hook (after-init . envrc-global-mode))
+  :defer t
+  :init (my/load-when-file-opened 'envrc)  ; first file opened; Eglot waits 0.4s anyway
+  :config (envrc-global-mode 1))
 
 (provide 'my-lang-envrc)

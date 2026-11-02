@@ -1,16 +1,14 @@
 ;;; my-editing-navigation.el --- Jumping around  -*- lexical-binding: t; byte-compile-warnings: (not free-vars unresolved); -*-
 
 (declare-function my/leader "my-keys-leader")
-(declare-function general-define-key "general")
 
 (use-package avy
   :commands (avy-goto-char-timer avy-goto-line)
   :init
   (setq avy-all-windows nil
-        avy-background t)
-  (general-define-key :states '(normal visual motion)
-                      "gs" 'avy-goto-char-timer
-                      "gl" 'avy-goto-line))
+        avy-background t))
+
+;; gs / gl and their Emacs-mode keys: lisp/keys/my-keys-table.el
 
 (use-package ace-window
   :commands ace-window

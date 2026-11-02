@@ -15,6 +15,41 @@
       inhibit-compacting-font-caches t
       process-adaptive-read-buffering t)
 
+;; Less redisplay and idle work
+(setq-default cursor-in-non-selected-windows nil)
+(setq highlight-nonselected-windows nil
+      auto-window-vscroll nil           ; makes line motion expensive with tall lines/images
+      use-dialog-box nil
+      use-file-dialog nil
+      ffap-machine-p-known 'reject)     ; no DNS lookups when point is on a hostname
+
+;; Typing and editing
+(blink-cursor-mode -1)                  ; a blinking cursor is a redisplay every half second
+(setq long-line-threshold 1000          ; minified/generated lines: stop scanning whole lines
+      syntax-wholeline-max 1000
+      display-line-numbers-grow-only t  ; width never recomputed while scrolling
+      show-paren-delay 0.05
+      ;; Wait for a pause in typing before the background checkers run.
+      flymake-no-changes-timeout 1.0
+      eglot-send-changes-idle-time 0.5
+      eldoc-idle-delay 0.4
+      ;; Fewer subprocess launches and redraws while typing a consult query.
+      consult-async-input-throttle 0.3
+      consult-async-input-debounce 0.2
+      consult-async-refresh-delay 0.2)
+
+;; Rely on file notifications instead of polling timers for auto-revert.
+(setq auto-revert-use-notify t
+      auto-revert-avoid-polling t
+      auto-revert-interval 5)
+
+;; Saving places stats every remembered file otherwise.
+(setq save-place-forget-unreadable-files nil)
+
+;; Collect garbage when Emacs loses focus, so it is less likely to pause you mid-edit.
+(add-function :after after-focus-change-function
+              (lambda () (unless (frame-focus-state) (garbage-collect))))
+
 ;; recentf cleanup can stall on stale/remote entries.
 (setq recentf-auto-cleanup 'never)
 

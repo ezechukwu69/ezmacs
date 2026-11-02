@@ -1,0 +1,55 @@
+#!/bin/sh
+# Fake gh for ez-review tests: logs argv, records stdin, answers with canned JSON.
+echo "GH_HOST=$GH_HOST $*" >> "${EZ_REVIEW_FAKE_LOG:-/dev/null}"
+HERE=$(dirname "$0")
+case "$*" in *"--input -"*|*"--body-file -"*) cat > "${EZ_REVIEW_FAKE_STDIN:-/dev/null}" ;; esac
+case "$*" in
+  "pr list"*)
+    cat <<'JSON'
+[{"number":7,"title":"Add widget","author":{"login":"alice"},"headRefName":"feat/widget","baseRefName":"main","isDraft":true,"state":"OPEN","url":"https://github.com/o/r/pull/7","updatedAt":"2026-10-01T10:00:00Z","createdAt":"2026-09-30T10:00:00Z","reviewDecision":"APPROVED","labels":[{"name":"bug","color":"d73a4a"}]},
+ {"number":8,"title":"Fix bug","author":{"login":"bob"},"headRefName":"fix/bug","baseRefName":"main","isDraft":false,"state":"OPEN","url":"https://github.com/o/r/pull/8","updatedAt":"2026-10-02T10:00:00Z","createdAt":"2026-10-01T10:00:00Z","reviewDecision":"","labels":[]}]
+JSON
+    ;;
+  "pr view"*"--json headRefOid"*) echo '{"headRefOid":"headsha123"}' ;;
+  "api --method POST"*"/pulls/7/comments") echo '{"id":900}' ;;
+  "pr view"*"--json commits"*)
+    echo '{"commits":[{"oid":"abc1234def5678","messageHeadline":"Add widget skeleton","messageBody":"","authors":[{"login":"alice","name":"Alice"}],"authoredDate":"2026-09-30T10:00:00Z"},{"oid":"fed9876cba4321","messageHeadline":"Wire widget in","messageBody":"details","authors":[{"login":"alice"}],"authoredDate":"2026-10-01T10:00:00Z"}]}'
+    ;;
+  "api -H"*"/commits/"*) cat "$HERE/../commit.diff" ;;
+  "pr view"*)
+    cat <<'JSON'
+{"number":7,"title":"Add widget","author":{"login":"alice"},"headRefName":"feat/widget","baseRefName":"main","isDraft":false,"state":"OPEN","url":"https://github.com/o/r/pull/7","updatedAt":"2026-10-01T10:00:00Z","createdAt":"2026-09-30T10:00:00Z","reviewDecision":"REVIEW_REQUIRED","labels":[{"name":"ui","color":"0e8a16"}],"body":"Adds a widget.\n\n```sh\nmake\n```","additions":12,"deletions":3,"changedFiles":2,"mergeable":"MERGEABLE","statusCheckRollup":[{"name":"build","status":"COMPLETED","conclusion":"SUCCESS"},{"name":"lint","status":"COMPLETED","conclusion":"FAILURE"},{"context":"ci/x","state":"PENDING"}],"reviewRequests":[{"login":"bob"}]}
+JSON
+    ;;
+  "pr diff"*) cat "$HERE/../sample.diff" ;;
+  "pr checkout"*) echo "Switched to branch 'feat/widget'" ;;
+  "pr create"*) echo "https://github.com/o/r/pull/9" ;;
+  "pr merge"*|"pr close"*|"pr reopen"*|"pr comment"*|"issue close"*|"issue reopen"*|"issue comment"*) echo ok ;;
+  "issue create"*) echo "https://github.com/o/r/issues/12" ;;
+  "issue list"*)
+    cat <<'JSON'
+[{"number":12,"title":"Crash on start","author":{"login":"dave"},"labels":[{"name":"bug","color":"d73a4a"}],"state":"OPEN","url":"https://github.com/o/r/issues/12","updatedAt":"2026-10-05T10:00:00Z","createdAt":"2026-10-04T10:00:00Z","assignees":[{"login":"alice"}]}]
+JSON
+    ;;
+  "issue view"*)
+    echo '{"number":12,"title":"Crash on start","author":{"login":"dave"},"labels":[],"state":"CLOSED","url":"https://github.com/o/r/issues/12","updatedAt":"2026-10-05T10:00:00Z","createdAt":"2026-10-04T10:00:00Z","assignees":[],"body":"It crashes."}'
+    ;;
+  "api"*"/assignees"*) echo '[{"login":"alice"},{"login":"bob"},{"login":"zed"}]' ;;
+  "api"*"/pulls/8/comments"*)
+    echo '[[{"id":801,"user":{"login":"bob"},"body":"Old thread","created_at":"2026-10-02T10:00:00Z","path":"src/a.el","line":null,"original_line":9,"side":"RIGHT","in_reply_to_id":null}]]'
+    ;;
+  "api"*"/pulls/8/reviews"*|"api"*"/issues/8/comments"*) echo '[[]]' ;;
+  "api"*"/pulls/7/comments/101/replies"*) echo '{"id":103}' ;;
+  "api"*"/pulls/7/comments"*)
+    echo '[[{"id":101,"user":{"login":"bob"},"body":"Why?","created_at":"2026-10-02T10:00:00Z","path":"src/a.el","line":2,"side":"RIGHT","in_reply_to_id":null},{"id":102,"user":{"login":"alice"},"body":"Because.","created_at":"2026-10-02T11:00:00Z","path":"src/a.el","line":2,"side":"RIGHT","in_reply_to_id":101}]]'
+    ;;
+  "api"*"/pulls/7/reviews"*"POST"*|"api --method POST"*"/pulls/7/reviews"*) echo '{"id":300}' ;;
+  "api"*"/pulls/7/reviews"*)
+    echo '[[{"id":301,"user":{"login":"bob"},"body":"","state":"APPROVED","submitted_at":"2026-10-04T09:00:00Z"},{"id":302,"user":{"login":"x"},"body":"","state":"COMMENTED","submitted_at":"2026-10-04T10:00:00Z"}]]'
+    ;;
+  "api"*"/issues/7/comments"*|"api"*"/issues/12/comments"*)
+    echo '[[{"id":201,"user":{"login":"carol"},"body":"LGTM overall","created_at":"2026-10-03T09:00:00Z"}]]'
+    ;;
+  "auth status"*) echo "Logged in to github.com" >&2 ;;
+  *) echo "fake gh: unhandled: $*" >&2; exit 1 ;;
+esac

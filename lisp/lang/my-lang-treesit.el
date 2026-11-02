@@ -38,10 +38,24 @@ Each -ts-mode adds its recipe (URL and matching revision) to
   (dolist (mode (seq-uniq (mapcar #'cdr treesit-major-mode-remap-alist)))
     (ignore-errors (autoload-do-load (symbol-function mode) mode))))
 
-;; Do it once Emacs is idle, so the completion list is complete without
-;; slowing startup.
-(add-hook 'emacs-startup-hook
-          (lambda () (run-with-idle-timer 1 nil #'my/treesit-register-sources)))
+;; Loading every -ts-mode takes ~0.8s, so do it only when a grammar is about to
+;; be installed (once per session), not in the background after startup.
+(defvar my/treesit--sources-registered nil)
+
+(defun my/treesit--ensure-sources ()
+  (unless my/treesit--sources-registered
+    (setq my/treesit--sources-registered t)
+    (my/treesit-register-sources)))
+
+;; The language prompt is built by the command's `interactive' spec, so the
+;; advice carries its own spec that registers first and then runs the original.
+(let ((spec (cadr (interactive-form 'treesit-install-language-grammar))))
+  (advice-add 'treesit-install-language-grammar :around
+              (lambda (orig &rest args)
+                (interactive (progn (my/treesit--ensure-sources)
+                                    (advice-eval-interactive-spec spec)))
+                (my/treesit--ensure-sources)
+                (apply orig args))))
 
 (defun my/treesit-install-all ()
   "Install every missing grammar that a built-in -ts-mode knows a source for."

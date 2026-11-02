@@ -7,10 +7,13 @@
 ;; or blocking.  Formatter binaries must be on PATH; see `apheleia-mode-alist'.
 ;; Modes Apheleia has no formatter for fall back to the LSP server's formatting.
 (use-package apheleia
-  :demand t
+  :defer t                              ; loaded from the idle queue; `cF' below autoloads it
+  :commands apheleia-format-buffer
+  :init (my/load-when-file-opened 'apheleia #'my/code-or-text-buffer-p)
   :config
-  (apheleia-global-mode 1)
-  (my/leader "cF" '(apheleia-format-buffer :wk "format (apheleia)")))
+  (apheleia-global-mode 1))
+
+(my/leader "cF" '(apheleia-format-buffer :wk "format (apheleia)"))
 
 (defcustom my/format-on-save t
   "Master switch for LSP-formatting fallback on save (Apheleia has its own mode)."
@@ -20,6 +23,7 @@
   "Before save: LSP-format when Apheleia has no formatter for this buffer."
   (when (and my/format-on-save
              (bound-and-true-p eglot--managed-mode)
+             (require 'apheleia nil t)  ; may still be waiting for its idle load
              (null (apheleia--get-formatters))
              (eglot-server-capable :documentFormattingProvider))
     (eglot-format-buffer)))
@@ -34,6 +38,8 @@
   (apheleia-global-mode (if my/format-on-save 1 -1))
   (message "Format on save %s" (if my/format-on-save "on" "off")))
 
-(my/leader "tF" '(my/format-on-save-toggle :wk "format on save"))
+;; Not `tF': that is the font picker (keys/my-keys-leader.el), and this file
+;; loads later, so binding it here silently took the font picker's key away.
+(my/leader "to" '(my/format-on-save-toggle :wk "format on save"))
 
 (provide 'my-lang-format)

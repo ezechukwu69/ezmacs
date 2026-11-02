@@ -18,6 +18,7 @@
 ;;; Code:
 
 (require 'cl-lib)
+(require 'color)
 (require 'subr-x)
 (require 'seq)
 (require 'json)
@@ -38,6 +39,9 @@
 (defvar ez-agents-usage--cache (make-hash-table :test #'eq)
   "Kind -> (TIME . WINDOWS).")
 
+(defvar ez-agents-usage-updated-hook nil
+  "Normal hook run whenever a provider has stored a fresh reading.")
+
 (defvar ez-agents-usage--busy nil "Kinds whose provider is running.")
 
 (defun ez-agents-usage--refresh (kind)
@@ -52,6 +56,7 @@
                           (setq done t
                                 ez-agents-usage--busy (delq kind ez-agents-usage--busy))
                           (puthash kind (cons (float-time) windows) ez-agents-usage--cache)
+                          (run-hooks 'ez-agents-usage-updated-hook)
                           (when (fboundp 'ez-agents-dashboard-refresh)
                             (ez-agents-dashboard-refresh)))))
         (error (setq ez-agents-usage--busy (delq kind ez-agents-usage--busy)))))))

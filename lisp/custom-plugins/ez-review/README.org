@@ -1,0 +1,159 @@
+#+title: ez-review
+
+Review GitHub pull requests, GitLab merge requests and issues from Emacs, on
+top of the ~gh~ and ~glab~ command line tools.  Credentials stay in the CLIs'
+own keyring storage; ez-review never reads or stores a token.  Self-hosted
+GitLab and GitHub Enterprise hosts work.
+
+* What it does
+
+- *Browse*: a tabbed list of pull/merge requests and issues with status icons,
+  label chips and review state.  Filter by everyone / mine / awaiting my review,
+  and by open / closed / merged / all.
+- *Read*: a page per item with description, checks, reviewers and the whole
+  conversation as cards.
+- *Review*: a diff buffer split into sections: an *Overview* (totals, pending
+  count, key legend), *Files changed* and *Review threads* (indexes: =RET= on a
+  row jumps to it in the diff), then the *Changes* themselves with a banner per
+  file and every thread drawn on a tinted card under the line it is about.
+  Put point on a line (or select a range) and press =c= to write an inline
+  comment: =C-c C-c= keeps it as a *pending* comment for the review, =C-c C-p=
+  *posts it right now* as a single comment with no review (like GitHub's "Add
+  single comment").  =P= on a pending card posts that one now.  Press =s= to
+  *suggest a change* (an editable ```suggestion block, as on
+  GitHub).  Comments are *pending drafts*, saved to disk; nothing is sent until
+  you submit the review with =S= as *comment*, *approve* or *request changes*
+  (GitLab has no request-changes).
+- *Commits*: the PR page lists its commits; =RET= opens one commit's diff
+  (read-only).  In the diff buffer =L= picks a commit, =)= and =(= walk through
+  them, and =a= goes back to all changes.
+- *Act*: check out, create a PR/MR from your branch (pre-filled), create an
+  issue, comment, reply to a thread, merge, close and reopen.  Everything that
+  writes to the remote asks first and names the repository and number.
+- *Accounts*: status, login and logout for both platforms.
+- *Magit*: =@= in ~magit-dispatch~, and an optional status section listing what
+  waits for your review.
+
+* Requirements
+
+- Emacs 29.1 or newer, with ~transient~ and ~magit-section~
+- ~gh~ for GitHub and/or ~glab~ for GitLab, on ~exec-path~
+- Optional: Magit, and ~nerd-icons~ for nicer icons (Unicode is used otherwise)
+
+* Install
+
+#+begin_src emacs-lisp
+(use-package ez-review
+  :vc (:url "https://github.com/ezechukwu69/ez-review")
+  :bind-keymap ("C-c r" . ez-review-map))
+#+end_src
+
+Or copy this directory onto your ~load-path~.
+
+* Keys
+
+** Entry points
+
+~ez-review-dispatch~ is the menu for everything.  ~ez-review-map~ is a prefix
+keymap: =d= menu, =l= list, =m= mine, =r= awaiting review, =i= issues, =n= new
+PR/MR, =a= auth status.
+
+** List buffer
+
+| Key   | Action                            |
+|-------+-----------------------------------|
+| =1= =2= | Pull/merge requests, Issues       |
+| =a= =m= =r= | Everyone's, mine, awaiting me |
+| =s=   | Cycle open → closed → merged → all |
+| =RET= | Open the item                     |
+| =d=   | Review the diff                   |
+| =c=   | Check out                         |
+| =x=   | Close / reopen                    |
+| =+=   | New PR/MR or issue (by tab)       |
+| =>=   | Load more (list is fetched in pages) |
+| =o= =g= =?= | Browser, refresh, menu      |
+
+** Item page
+
+=d= diff, =c= comment, =S= submit review, =a= approve, =M= merge, =C= check out,
+=x= close/reopen, =o= browser, =g= refresh, =?= menu.
+
+** Diff buffer
+
+=c= comment on line or region (=C-c C-c= pending, =C-c C-p= post now),
+=s= suggest a change (same two endings), =r= reply, =e= edit pending,
+=P= post the pending comment at point now, =k= delete pending, =S= submit review, =]= =[= next/previous comment,
+=}= ={= next/previous file, =RET= jump (on an index row) or visit file (on a
+line), =L= pick a commit, =)= =(= next/previous commit, =a= all changes,
+=C= check out, =m= Magit range diff, =TAB= fold, =?= menu.
+
+** Writing text
+
+Type =@= in any compose buffer to complete a user name.  People already in the
+conversation (author, reviewers, commenters, assignees) come first, then the
+repository's assignable users (GitHub) or members (GitLab), fetched once in the
+background (first 100).  Choosing a name adds a trailing space; =@= inside an
+e-mail address does nothing.  Mentions are highlighted in rendered comments.
+~ez-review-mention-auto-complete~ set to nil stops the pop-up on =@= (use
+~completion-at-point~ yourself).
+
+Comments, summaries, and new PRs/issues open a small buffer: =C-c C-c= to
+finish, =C-c C-k= to cancel.  New PRs and issues start with =Title:=, =Base:=,
+=Draft:= and =Labels:= lines, then a blank line, then the description.
+
+* Configuration
+
+| Option                           | Meaning                                         |
+|----------------------------------+-------------------------------------------------|
+| ~ez-review-remote~               | Git remote that decides the repository ("origin") |
+| ~ez-review-mention-auto-complete~ | Open completion as soon as =@= is typed (t) |
+| ~ez-review-list-limit~           | Items per list page (100); =>= loads that many more |
+| ~ez-review-host-alist~           | Host → ~github~ or ~gitlab~ (others auto-detected) |
+| ~ez-review-confirm-writes~       | Ask before sending a review, merging, closing   |
+| ~ez-review-data-directory~       | Where pending comments are kept                 |
+| ~ez-review-gh-program~, ~ez-review-glab-program~ | CLI executables                |
+| ~ez-review-icons~                | ~auto~ uses nerd-icons when installed           |
+| ~ez-review-magit-status-section~ | Show review requests in the Magit status buffer |
+| ~ez-review-diff-collapse-lines~  | Files longer than this start folded             |
+
+A host that is not in ~ez-review-host-alist~ (self-hosted GitLab, GitHub
+Enterprise) is detected by asking which CLI is logged in to it, and the answer
+is remembered for the session.  To skip the check:
+
+#+begin_src emacs-lisp
+(add-to-list 'ez-review-host-alist '("git.example.com" . gitlab))
+#+end_src
+
+* Notes and limits
+
+- *Paging.*  Lists are fetched ~ez-review-list-limit~ items at a time (GitHub
+  with =--limit=, GitLab one 100-item page per request) and =>= loads more; a
+  big repository is never read in full.  Comments, threads and commits of one
+  PR are fetched completely.  The diff comes as one request: GitHub refuses
+  diffs over 20,000 lines (the server's message is shown), files longer than
+  ~ez-review-diff-collapse-lines~ start folded, and ~ez-review-diff-max-lines~
+  cuts what is drawn per file.
+
+- GitHub posts a review atomically.  GitLab has no such call, so each comment
+  becomes its own discussion; if one fails part-way, the ones already sent are
+  dropped from your pending list so a retry does not duplicate them.
+- GitHub does not let you approve your own PR; the server's reason is shown.
+- The "mine" filter uses GitHub search, which can lag a few seconds behind for
+  a brand-new PR.
+- Rebase-merge on GitLab is a project setting, not a per-merge choice.
+- Pending comments on a range use GitHub's multi-line comments; GitLab comments
+  attach to the last line of the range.
+
+* Development
+
+#+begin_src sh
+make compile LOADPATH="-L /path/to/magit-section -L /path/to/compat"
+make test    LOADPATH="..."
+#+end_src
+
+The tests put fake ~gh~ / ~glab~ scripts from ~test/fixtures/bin~ in front of the
+real CLIs, so they need no network and no login.
+
+* License
+
+GPL-3.0-or-later.

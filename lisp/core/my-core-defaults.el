@@ -37,8 +37,10 @@
 (electric-indent-mode 1)
 (save-place-mode 1)
 (savehist-mode 1)
+;; Set before enabling the mode: it cleans the list once on enable otherwise.
+(setq recentf-auto-cleanup 'never
+      recentf-max-saved-items 200)
 (recentf-mode 1)
-(setq recentf-max-saved-items 200)
 (minibuffer-depth-indicate-mode 1)
 (global-so-long-mode 1)
 (repeat-mode 1)

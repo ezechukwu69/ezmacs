@@ -2,7 +2,8 @@
 
 (use-package which-key
   :ensure nil
-  :demand t
+  :defer t
+  :init (my/after-startup-idle (lambda () (require 'which-key)) t) ; first in the idle queue
   :custom
   (which-key-idle-delay 0.4)
   (which-key-sort-order #'which-key-key-order-alpha)

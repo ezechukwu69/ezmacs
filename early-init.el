@@ -34,13 +34,20 @@
 ;; startup; my-core-userlisp.el then byte-compiles and scrapes autoloads.
 ;; Must be set here, before init.el runs.
 (when (boundp 'user-lisp-directory)
+  (setq user-lisp-ignored-directories
+        ;; Tests and their fixtures are not config: never compile or load-path them.
+        (append '("test" "tests" "fixtures" ".github") user-lisp-ignored-directories))
   (setq user-lisp-directory (expand-file-name "lisp/" user-emacs-directory)
         ;; Only put it on `load-path' now; compiling happens after init (see
         ;; my-core-userlisp.el) when macros and packages are available.
         user-lisp-auto-scrape nil))
 
 ;; We initialise packages ourselves in lisp/core/my-core-packages.el.
-(setq package-enable-at-startup nil)
+;; Quickstart replaces scanning 80+ package dirs with one precomputed file;
+;; package.el regenerates it on install/delete.
+(setq package-enable-at-startup nil
+      package-quickstart t
+      package-quickstart-file (expand-file-name "package-quickstart.el" my/data-dir))
 
 ;; Skip file-name handlers (tramp, jka-compr, ...) while loading init; restored after.
 (defvar my/--file-name-handler-alist file-name-handler-alist)
@@ -52,8 +59,15 @@
 
 ;; Avoid frame flicker / resizing at startup.
 (setq frame-inhibit-implied-resize t
+      frame-resize-pixelwise t
       inhibit-startup-screen t
-      load-prefer-newer t)
+      inhibit-startup-echo-area-message user-login-name
+      inhibit-x-resources t
+      load-prefer-newer t
+      auto-mode-case-fold nil)
+
+;; Menu/tool bars are off (see below), so don't build their contents.
+(advice-add #'tool-bar-setup :override #'ignore)
 
 (push '(menu-bar-lines . 0) default-frame-alist)
 (push '(tool-bar-lines . 0) default-frame-alist)
